@@ -3,8 +3,8 @@
 var canvas;
 var context;
 var bodies = new Array();
-var dt = 0.001;
-var timeFactor = 25;
+var dt = 0.005;
+var timeFactor = 10;
 var t = 0;
 
 function init()
@@ -112,9 +112,9 @@ function updatePositionsEuler()
             {
                 var a = gravityAcceleration(body1, body2);
                 body1.velocity = body1.velocity.add(a.scalarMultiply(dt));
-                body1.position = body1.position.add(body1.velocity.scalarMultiply(dt));
             }
         }
+        body1.position = body1.position.add(body1.velocity.scalarMultiply(dt));
     }
 }
 
