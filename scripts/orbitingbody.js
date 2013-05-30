@@ -12,6 +12,9 @@ OrbitingBody.prototype.draw = function (canvas)
     var ctx = canvas.getContext("2d");
     var x = canvas.width / 2 + this.position.x;
     var y = canvas.height / 2 - this.position.y;
+	
+	if (x < 0 || y < 0) // don't attempt to draw if we don't need to
+		return;
 
     // draw background glow
     var grd = ctx.createRadialGradient(x, y, 0.01, x, y, 10 * Math.log(this.radius));
