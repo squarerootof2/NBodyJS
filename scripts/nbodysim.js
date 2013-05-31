@@ -11,6 +11,7 @@ var tf = 0;
 var newBody;
 var drawTrails = false;
 var mouseDown = false;
+var paused = false;
 
 function init()
 {
@@ -39,10 +40,10 @@ function init()
     window.addEventListener("DOMMouseScroll", mouseWheelHandler, false);
 
     // add bodies
-    var body1 = new OrbitingBody(100000, 12, new Vector().xy(175, 0), new Vector().rTheta(10, 90 * Math.PI / 180));
-    body1.color = 'FF9900';
+    var body1 = new OrbitingBody(100000, 12, new Vector().xy(50, 0), new Vector().rTheta(29, 90 * Math.PI / 180));
+    body1.color = 'FFD699';
     body1.trailEnabled = drawTrails;
-    var body2 = new OrbitingBody(100000, 12, new Vector().xy(-175, 0), new Vector().rTheta(10, 270 * Math.PI / 180));
+    var body2 = new OrbitingBody(100000, 12, new Vector().xy(-50, 0), new Vector().rTheta(29, 270 * Math.PI / 180));
     body2.color = 'black';
     body2.trailEnabled = drawTrails;
     bodies.push(body1);
@@ -75,8 +76,10 @@ function drawBodies()
     if (newBody)
         newBody.drawBody(canvas);
 
-    document.getElementById("output").innerHTML = "t = " + t.toFixed(3).toString();
-    requestAnimationFrame(drawBodies); // create the animation loop
+    //document.getElementById("output").innerHTML = "t = " + t.toFixed(3).toString();
+
+    if (!paused)
+        requestAnimationFrame(drawBodies); // create the animation loop
 }
 
 function isCollision(body1, body2)
@@ -162,7 +165,7 @@ function mouseDownListener(e)
     var bRect = canvas.getBoundingClientRect();
     var mouseX = (e.clientX - bRect.left) * (canvas.width / bRect.width) - canvas.width / 2;
     var mouseY = canvas.height / 2 - (e.clientY - bRect.top) * (canvas.height / bRect.height);
-    newBody = new OrbitingBody(2000, 2, new Vector().xy(mouseX, mouseY), new Vector().xy(0, 0));
+    newBody = new OrbitingBody(100, 2, new Vector().xy(mouseX, mouseY), new Vector().xy(0, 0));
     newBody.trailEnabled = drawTrails;
 
     canvas.removeEventListener("mousedown", mouseDownListener, false);
@@ -197,14 +200,35 @@ function mouseUpListener(e)
 
 function keyPressListener(e)
 {
-    if (e.keyCode == 84)
+    switch (e.keyCode)
     {
-        drawTrails = !drawTrails;
-        deletedBodyTrails = new Array();
-        for (var i = 0; i < bodies.length; i++)
-        {
-            bodies[i].trailEnabled = drawTrails;
-            bodies[i].trail = new Array();
-        }
+        case 84: // t
+            drawTrails = !drawTrails;
+            deletedBodyTrails = new Array();
+            for (var i = 0; i < bodies.length; i++)
+            {
+                bodies[i].trailEnabled = drawTrails;
+                bodies[i].trail = new Array();
+            }
+            break;
+        case 80: // p
+            paused = !paused;
+            if (!paused)
+                drawBodies();
+            break;
+        case 82:
+            bodies = new Array();
+            deletedBodyTrails = new Array();
+            t = 0;
+            // add bodies
+            var body1 = new OrbitingBody(100000, 12, new Vector().xy(175, 0), new Vector().rTheta(10, 90 * Math.PI / 180));
+            body1.color = 'FFD699';
+            body1.trailEnabled = drawTrails;
+            var body2 = new OrbitingBody(100000, 12, new Vector().xy(-175, 0), new Vector().rTheta(10, 270 * Math.PI / 180));
+            body2.color = 'black';
+            body2.trailEnabled = drawTrails;
+            bodies.push(body1);
+            bodies.push(body2);
+            break;
     }
 }
