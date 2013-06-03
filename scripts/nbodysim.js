@@ -1,17 +1,23 @@
 ﻿/// <reference path="vector.js" />
 /// <reference path="orbitingbody.js" />
-var canvas;
-var context;
-var bodies = new Array();
-var deletedBodyTrails = new Array();
-var dt = 0.05;
+// numerical constants and settings
 var t = 0;
 var t0 = 0;
 var tf = 0;
+var dt = 0.05;
+var newMass = 100;
+var softeningLength = 2;
+
+// global variables
+var canvas;
+var context;
 var newBody;
-var drawTrails = false;
-var mouseDown = false;
+var newColor = "white";
 var paused = false;
+var mouseDown = false;
+var drawTrails = false;
+var bodies = new Array();
+var deletedBodyTrails = new Array();
 
 function init()
 {
@@ -34,23 +40,29 @@ function init()
         }
     })();
 
+    // add bodies
+    loadInitialBodies();
+    
     // add event handlers
     canvas.addEventListener("mousedown", mouseDownListener, false);
     window.addEventListener("keydown", keyPressListener, false);
-    window.addEventListener("DOMMouseScroll", mouseWheelHandler, false);
-
-    // add bodies
-    var body1 = new OrbitingBody(100000, 12, new Vector().xy(50, 0), new Vector().rTheta(29, 90 * Math.PI / 180));
-    body1.color = 'FFD699';
-    body1.trailEnabled = drawTrails;
-    var body2 = new OrbitingBody(100000, 12, new Vector().xy(-50, 0), new Vector().rTheta(29, 270 * Math.PI / 180));
-    body2.color = 'black';
-    body2.trailEnabled = drawTrails;
-    bodies.push(body1);
-    bodies.push(body2);
+    window.addEventListener("DOMMouseScroll", mouseWheelHandler, false); // firefox
+    window.addEventListener("mousewheel", mouseWheelHandler, false); // ie9, chrome, safari, opera
 
     // do the first frame, and then animate
     drawBodies();
+}
+
+function loadInitialBodies()
+{
+    var body1 = new OrbitingBody(100000, getRadiusFromMass(100000), new Vector().xy(50, 0), new Vector().rTheta(29, 90 * Math.PI / 180));
+    body1.color = getColorFromMass(100000);
+    body1.trailEnabled = drawTrails;
+    var body2 = new OrbitingBody(100000, getRadiusFromMass(100000), new Vector().xy(-50, 0), new Vector().rTheta(29, 270 * Math.PI / 180));
+    body2.color = "black";
+    body2.trailEnabled = drawTrails;
+    bodies.push(body1);
+    bodies.push(body2);
 }
 
 function drawBodies()
@@ -76,8 +88,6 @@ function drawBodies()
     if (newBody)
         newBody.drawBody(canvas);
 
-    //document.getElementById("output").innerHTML = "t = " + t.toFixed(3).toString();
-
     if (!paused)
         requestAnimationFrame(drawBodies); // create the animation loop
 }
@@ -99,8 +109,8 @@ function isCollision(body1, body2)
 function gravityAcceleration(body1, body2)
 {
     var r12 = body2.position.subtract(body1.position); // position vector pointing from body1 to body2
-    var rhat = r12.getUnitVector();
-    return rhat.scalarMultiply(body2.mass / Math.pow(r12.length(), 2));
+    var deNom = Math.pow(Math.pow(r12.length(), 2) + Math.pow(softeningLength, 2), 3/2.0);
+    return r12.scalarMultiply(body2.mass / deNom);
 }
 
 // solve the equations of motion using the Velocity Verlet algorithm
@@ -153,24 +163,86 @@ function updatePositionsVerlet()
     }
 }
 
+function getRadiusFromMass(mass)
+{
+    if (mass == 0)
+        return 1.1;
+    else
+        return (10 * (Math.log(mass) / Math.LN10) - 14) / 3;
+}
+
+function getColorFromMass(mass)
+{
+    if (mass == 100000)
+        return "#FFD699";
+    else if (mass == 10000)
+        return "lemonchiffon";
+    else 
+        return "white";
+}
+
 function mouseWheelHandler(e)
 {
-    // to be implemented...
+    var sign = Math.min(1, Math.max(-1, e.detail || e.wheelDelta));
+    
+    if (mouseDown)
+    {
+        switch (sign)
+        {
+            case -1: // scrolled up
+                if (newMass == 100000 && newColor == "black")
+                    newColor = getColorFromMass(newMass);
+                else if (newBody.mass > 100)
+                {
+                    newMass /= 10;
+                    newColor = getColorFromMass(newMass);
+                }
+                else if (newBody.mass == 100)
+                {
+                    newMass = 0;
+                    newColor = getColorFromMass(newMass);
+                }
+                break;
+            case 1: // scrolled down
+                if (newMass == 100000 && newBody.color == getColorFromMass(newMass))
+                    newColor = "black";
+                else if (newBody.mass == 0)
+                {
+                    newMass = 100;
+                    newColor = getColorFromMass(newMass);
+                }
+                else if (newBody.mass < 100000)
+                {
+                    newMass *= 10;
+                    newColor = getColorFromMass(newMass);
+                }
+                break;
+        }
+        
+        newBody.mass = newMass;
+        newBody.color = newColor;
+        newBody.radius = getRadiusFromMass(newMass);
+    }
 }
 
 function mouseDownListener(e)
 {
-    mouseDown = true;
-    t0 = t;
-    var bRect = canvas.getBoundingClientRect();
-    var mouseX = (e.clientX - bRect.left) * (canvas.width / bRect.width) - canvas.width / 2;
-    var mouseY = canvas.height / 2 - (e.clientY - bRect.top) * (canvas.height / bRect.height);
-    newBody = new OrbitingBody(100, 2, new Vector().xy(mouseX, mouseY), new Vector().xy(0, 0));
-    newBody.trailEnabled = drawTrails;
+    if (!paused)
+    {
+        mouseDown = true;
+        t0 = t;
+        var bRect = canvas.getBoundingClientRect();
+        var mouseX = (e.clientX - bRect.left) * (canvas.width / bRect.width) - canvas.width / 2;
+        var mouseY = canvas.height / 2 - (e.clientY - bRect.top) * (canvas.height / bRect.height);
+        newBody = new OrbitingBody(newMass, getRadiusFromMass(newMass), new Vector().xy(mouseX, mouseY), new Vector().xy(0, 0));
+        //newBody = new OrbitingBody(0, 1.5, new Vector().xy(mouseX, mouseY), new Vector().xy(0, 0));
+        newBody.color = newColor;
+        newBody.trailEnabled = drawTrails;
 
-    canvas.removeEventListener("mousedown", mouseDownListener, false);
-    window.addEventListener("mouseup", mouseUpListener, false);
-
+        canvas.removeEventListener("mousedown", mouseDownListener, false);
+        window.addEventListener("mouseup", mouseUpListener, false);
+    }
+    
     //  prevents the mouse down event from having an effect on the main browser window
     if (e.preventDefault)
         e.preventDefault();
@@ -202,7 +274,7 @@ function keyPressListener(e)
 {
     switch (e.keyCode)
     {
-        case 84: // t
+        case 84: // t - trails
             drawTrails = !drawTrails;
             deletedBodyTrails = new Array();
             for (var i = 0; i < bodies.length; i++)
@@ -211,24 +283,20 @@ function keyPressListener(e)
                 bodies[i].trail = new Array();
             }
             break;
-        case 80: // p
+        case 80: // p - pause
             paused = !paused;
             if (!paused)
                 drawBodies();
             break;
-        case 82:
+        case 82: // r - reset
             bodies = new Array();
             deletedBodyTrails = new Array();
             t = 0;
-            // add bodies
-            var body1 = new OrbitingBody(100000, 12, new Vector().xy(175, 0), new Vector().rTheta(10, 90 * Math.PI / 180));
-            body1.color = 'FFD699';
-            body1.trailEnabled = drawTrails;
-            var body2 = new OrbitingBody(100000, 12, new Vector().xy(-175, 0), new Vector().rTheta(10, 270 * Math.PI / 180));
-            body2.color = 'black';
-            body2.trailEnabled = drawTrails;
-            bodies.push(body1);
-            bodies.push(body2);
+            loadInitialBodies();
+            break;
+        case 67: // c - clear
+            bodies = new Array();
+            deletedBodyTrails = new Array();
             break;
     }
 }
